@@ -614,7 +614,7 @@ class Batch(BatchProtocol):
         if copy:
             batch_dict = deepcopy(batch_dict)
         if batch_dict is not None:
-            if isinstance(batch_dict, dict | BatchProtocol):
+            if isinstance(batch_dict, dict | Batch):
                 _assert_type_keys(batch_dict.keys())
                 for batch_key, obj in batch_dict.items():
                     self.__dict__[batch_key] = _parse_value(obj)
@@ -951,7 +951,7 @@ class Batch(BatchProtocol):
                     self.__dict__[key][sum_lens[i] : sum_lens[i + 1]] = value
 
     def cat_(self, batches: BatchProtocol | Sequence[dict | BatchProtocol]) -> None:
-        if isinstance(batches, BatchProtocol | dict):
+        if isinstance(batches, Batch | dict):
             batches = [batches]
         # check input format
         batch_list = []
@@ -1037,7 +1037,7 @@ class Batch(BatchProtocol):
             {
                 batch_key
                 for batch_key, obj in batch.items()
-                if not (isinstance(obj, BatchProtocol) and len(obj.get_keys()) == 0)
+                if not (isinstance(obj, Batch) and len(obj.get_keys()) == 0)
             }
             for batch in batches
         ]
@@ -1048,7 +1048,7 @@ class Batch(BatchProtocol):
             if all(isinstance(element, torch.Tensor) for element in value):
                 self.__dict__[shared_key] = torch.stack(value, axis)
             # third often
-            elif all(isinstance(element, BatchProtocol | dict) for element in value):
+            elif all(isinstance(element, Batch | dict) for element in value):
                 self.__dict__[shared_key] = Batch.stack(value, axis)
             else:  # most often case is np.ndarray
                 try:
@@ -1082,7 +1082,7 @@ class Batch(BatchProtocol):
                 value = batch.get(key)
                 # TODO: fix code/annotations s.t. the ignores can be removed
                 if (
-                    isinstance(value, BatchProtocol)  # type: ignore
+                    isinstance(value, Batch)  # type: ignore
                     and len(value.get_keys()) == 0  # type: ignore
                 ):
                     continue  # type: ignore
@@ -1250,7 +1250,7 @@ class Batch(BatchProtocol):
                     ) from exception
             else:
                 existing_entry = self[key]
-                if isinstance(existing_entry, BatchProtocol):
+                if isinstance(existing_entry, Batch):
                     raise ValueError(
                         f"Cannot set sequence at key {key} because it is a nested batch, "
                         f"can only set a subsequence of an array.",
@@ -1274,7 +1274,7 @@ class Batch(BatchProtocol):
 
         def is_any_true(boolean_batch: BatchProtocol) -> bool:
             for val in boolean_batch.values():
-                if isinstance(val, BatchProtocol):
+                if isinstance(val, Batch):
                     if is_any_true(val):
                         return True
                 else:
@@ -1325,7 +1325,7 @@ def _apply_batch_values_func_recursively(
     """
     result = batch if inplace else deepcopy(batch)
     for key, val in batch.__dict__.items():
-        if isinstance(val, BatchProtocol):
+        if isinstance(val, Batch):
             result[key] = _apply_batch_values_func_recursively(val, values_transform, inplace=False)
         else:
             result[key] = values_transform(val)
